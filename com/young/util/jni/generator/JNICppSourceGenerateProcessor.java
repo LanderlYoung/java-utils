@@ -28,7 +28,7 @@ import java.util.Set;
 public class JNICppSourceGenerateProcessor extends AbstractProcessor {
     private Messager mMessager;
     private Types mTypeUtils;
-    private Elements mEmelentsUtils;
+    private Elements mElementsUtils;
     private Filer mFiler;
 
     @Override
@@ -36,7 +36,7 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
         super.init(processingEnv);
         mMessager = processingEnv.getMessager();
         mTypeUtils = processingEnv.getTypeUtils();
-        mEmelentsUtils = processingEnv.getElementUtils();
+        mElementsUtils = processingEnv.getElementUtils();
         mFiler = processingEnv.getFiler();
     }
 
@@ -71,7 +71,7 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
         }
 
         //FIXME fake implementation
-        if(l.isEmpty()) return null;
+        if (l.isEmpty()) return null;
 
         ElementClazz ec = l.getFirst();
         ec.methods = new LinkedList<Element>();
@@ -102,9 +102,12 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
     }
 
     private void processNativeClass(ElementClazz clazz) {
-        for (Element method : clazz.methods) {
-            log(method.getSimpleName().toString());
-        }
         log(clazz.clazz.getSimpleName().toString());
+        CppCodeGenerator.messager = mMessager;
+        CppCodeGenerator codeGen = new CppCodeGenerator(
+                clazz.clazz,
+                clazz.methods
+        );
+        codeGen.run();
     }
 }

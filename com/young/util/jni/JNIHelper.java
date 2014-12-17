@@ -1,4 +1,4 @@
-package com.young.util;
+package com.young.util.jni;
 
 /**
  * Author: young
@@ -6,7 +6,16 @@ package com.young.util;
  * Time:   下午10:35
  * Life with passion. Code with creativity!
  */
-public class ToJNIType {
+public class JNIHelper {
+    public static String getJNIClassName(Class<?> c) {
+        return toJNIClassName(c.getName());
+    }
+
+    public static String toJNIClassName(String className) {
+        if (className == null) return null;
+        return className.replace("_", "_1").replace(".", "_");
+    }
+
     public static String toJNIType(Class<?> c) {
         if (c == null) {
             return "";

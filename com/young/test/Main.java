@@ -1,8 +1,7 @@
 package com.young.test;
 
-import com.young.util.GenerateJNIHeader;
-import com.young.util.ToJNIType;
 import com.young.util.TypeSignature;
+import com.young.util.jni.JNIHelper;
 
 import java.lang.reflect.Method;
 
@@ -16,15 +15,12 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Class<?> c = null;
 
-        Class.forName("");
-
-        GenerateJNIHeader.generate(Native.class);
-
-        System.out.println(ToJNIType.toJNIType(int.class));
-        System.out.println(ToJNIType.toJNIType(void.class));
-        c = Class.forName("java.util.Map");
+        System.out.println(JNIHelper.getJNIClassName(Native.class));
+        System.out.println(JNIHelper.toJNIType(int.class));
+        System.out.println(JNIHelper.toJNIType(void.class));
+        c = Main.class;
         for(Method m: c.getDeclaredMethods()) {
-            System.out.print(m.getName() + " ");
+            System.out.print(m.getName() + " : ");
             System.out.println(TypeSignature.getMethodSignature(m));
 
         }

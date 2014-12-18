@@ -12,7 +12,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -47,47 +46,17 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
         //classify annotations by class
         Set<? extends Element> classes =
                 roundEnv.getElementsAnnotatedWith(NativeClass.class);
-        Set<? extends Element> methods =
-                roundEnv.getElementsAnnotatedWith(NativeMethod.class);
 
-        if (classes.isEmpty() && methods.isEmpty()) return true;
 
-        List<ElementClazz> clazzs = split(classes, methods);
-        for (ElementClazz ec : clazzs) {
-            if (ec.methods == null) {
-                warn("Class " + ec.clazz.getSimpleName() + (" has not native method" +
-                        "marked by NativeMethod annotation"));
-            } else {
-                CppCodeGenerator codeGen = new CppCodeGenerator(
-                        env,
-                        ec.clazz,
-                        ec.methods
-                );
-                codeGen.run();
+        if (classes.isEmpty()) return true;
+
+        for (Element ec : classes) {
+            if (ec instanceof TypeElement) {
+                CppCodeGenerator codeGen = new CppCodeGenerator(env, (TypeElement) ec);
+                codeGen.doGenerate();
             }
         }
         return true;
-    }
-
-    private List<ElementClazz> split(Set<? extends Element> classes, Set<? extends Element> methods) {
-        LinkedList<ElementClazz> l = new LinkedList<ElementClazz>();
-        for (Element e : classes) {
-            ElementClazz ec = new ElementClazz();
-            ec.clazz = e;
-            l.add(ec);
-        }
-
-        //FIXME fake implementation
-        if (l.isEmpty()) return null;
-
-        ElementClazz ec = l.getFirst();
-        ec.methods = new LinkedList<Element>();
-        for (Element e : methods) {
-            ec.methods.add(e);
-            //log(e.getSimpleName().toString());
-        }
-
-        return l;
     }
 
     private void warn(String msg) {

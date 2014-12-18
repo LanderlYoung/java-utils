@@ -2,11 +2,11 @@ package com.young.util.jni.generator;
 
 import com.young.util.jni.JNIHelper;
 
-import javax.annotation.processing.Filer;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic;
 import java.io.BufferedOutputStream;
@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -26,8 +27,7 @@ import java.util.List;
 public class CppCodeGenerator implements Runnable {
     private final Environment mEnv;
     private final Element mClazz;
-    private final List<? extends Element> mMethods;
-    private Filer mFiler;
+    private List<Element> mMethods;
     private String mClassName;
     private String mJNIClassName;
     private String mFullClassName;
@@ -36,25 +36,30 @@ public class CppCodeGenerator implements Runnable {
 
 
     //DONE JNIHElper.toJNIType throwable
-    //TODO Use NativeClass to mark generate, NativeMethod to add implements
+    //DONE Use NativeClass to mark generate, NativeMethod to add implements
     //TODO file output
 
     public CppCodeGenerator(Environment env,
-                            Element clazz,
-                            List<? extends Element> methods) {
+                            TypeElement clazz) {
         mEnv = env;
         mClazz = clazz;
-        mMethods = methods;
+        mMethods = new LinkedList<Element>();
     }
 
     @Override
     public void run() {
-        initNames();
-        genHeader();
-        genSource();
+        doGenerate();
     }
 
-    private void initNames() {
+    public void doGenerate() {
+        init();
+        if (!mMethods.isEmpty()) {
+            genHeader();
+            genSource();
+        }
+    }
+
+    private void init() {
         assert mClazz.getKind().equals(ElementKind.METHOD);
         Element pkg = mClazz.getEnclosingElement();
         String pkgName = pkg.getSimpleName().toString();
@@ -64,6 +69,21 @@ public class CppCodeGenerator implements Runnable {
         mHeaderName = "_" + mJNIClassName + ".h";
         mSourceName = "_" + mJNIClassName + ".cpp";
         mFullClassName = mClassName.replace('.', '/');
+
+        findNativeMethods();
+    }
+
+    private void findNativeMethods() {
+        List<? extends Element> elements = mClazz.getEnclosedElements();
+        for (Element e : elements) {
+            if (e.getKind().equals(ElementKind.METHOD)) {
+                if (e.getModifiers().contains(Modifier.NATIVE)) {
+                    mMethods.add(e);
+                } else if (e.getAnnotation(NativeMethod.class) != null) {
+                    warn("Annotation @" + NativeMethod.class.getSimpleName() + " should only be applied to NATIVE method!");
+                }
+            }
+        }
     }
 
     private void log(String msg) {
@@ -154,10 +174,10 @@ public class CppCodeGenerator implements Runnable {
             w.print(" * Method:    ");
             w.println(m.getSimpleName().toString());
             w.print(" * Signature: ");
-            w.println(Helper.getMethodSignature(e));
+            w.println(HandyHelper.getMethodSignature(e));
             w.println(" */");
 
-            w.print(Helper.toJNIType(e.getReturnType(), mEnv.typeUtils));
+            w.print(HandyHelper.toJNIType(e.getReturnType(), mEnv.typeUtils));
             w.print(" ");
             w.print(m.getSimpleName().toString());
             w.print("(JNIEnv *env");
@@ -171,7 +191,7 @@ public class CppCodeGenerator implements Runnable {
             List<? extends VariableElement> params = e.getParameters();
             for (VariableElement ve : params) {
                 w.print(", ");
-                w.print(Helper.toJNIType(ve.asType(), mEnv.typeUtils));
+                w.print(HandyHelper.toJNIType(ve.asType(), mEnv.typeUtils));
                 w.print(' ');
                 w.print(ve.getSimpleName().toString());
             }
@@ -182,7 +202,7 @@ public class CppCodeGenerator implements Runnable {
                 NativeMethod a = m.getAnnotation(NativeMethod.class);
                 if (a != null) {
                     for (String s : a.value()) {
-                        w.write("    ");
+                        w.print("    ");
                         w.println(s);
                     }
                 }
@@ -236,7 +256,7 @@ public class CppCodeGenerator implements Runnable {
         w.println("\",");
 
         w.print('\"');
-        w.print(Helper.getMethodSignature(method));
+        w.print(HandyHelper.getMethodSignature(method));
         w.println("\",");
 
         w.print("reinterpret_cast<void *>(");

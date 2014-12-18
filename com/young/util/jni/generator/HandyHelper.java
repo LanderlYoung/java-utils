@@ -14,7 +14,7 @@ import javax.lang.model.util.Types;
  * Time:   20:19
  * Life with passion. Code with creativity!
  */
-public class Helper {
+public class HandyHelper {
 
     public static String toJNIType(TypeMirror t, Types typeUtils) {
         if (t == null) return "";

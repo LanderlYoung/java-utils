@@ -107,11 +107,11 @@ public class CppCodeGenerator implements Runnable {
 
     public void genHeader() {
         File header = new File(mHeaderName);
+        if (header.exists()) header.delete();
         if (!header.canWrite()) {
             warn("output file " + header.getName() + " can not be written");
             return;
         }
-        if (header.exists()) header.delete();
         PrintWriter w = null;
         try {
             w = new PrintWriter(new BufferedOutputStream(
@@ -172,11 +172,11 @@ public class CppCodeGenerator implements Runnable {
 
     public void genSource() {
         File source = new File(mSourceName);
+        if (source.exists()) source.delete();
         if (!source.canWrite()) {
             warn("output file " + source.getName() + " can not be written");
             return;
         }
-        if (source.exists()) source.delete();
         PrintWriter w = null;
         try {
             w = new PrintWriter(new BufferedOutputStream(

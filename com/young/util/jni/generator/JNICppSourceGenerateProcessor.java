@@ -42,6 +42,8 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        final Environment env = new Environment(mMessager,
+                mTypeUtils, mElementsUtils, mFiler, roundEnv);
         //classify annotations by class
         Set<? extends Element> classes =
                 roundEnv.getElementsAnnotatedWith(NativeClass.class);
@@ -56,7 +58,12 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
                 warn("Class " + ec.clazz.getSimpleName() + (" has not native method" +
                         "marked by NativeMethod annotation"));
             } else {
-                processNativeClass(ec);
+                CppCodeGenerator codeGen = new CppCodeGenerator(
+                        env,
+                        ec.clazz,
+                        ec.methods
+                );
+                codeGen.run();
             }
         }
         return true;
@@ -99,15 +106,5 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
     private static class ElementClazz {
         public Element clazz;
         public List<Element> methods;
-    }
-
-    private void processNativeClass(ElementClazz clazz) {
-        log(clazz.clazz.getSimpleName().toString());
-        CppCodeGenerator.messager = mMessager;
-        CppCodeGenerator codeGen = new CppCodeGenerator(
-                clazz.clazz,
-                clazz.methods
-        );
-        codeGen.run();
     }
 }

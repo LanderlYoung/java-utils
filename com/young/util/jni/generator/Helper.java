@@ -1,8 +1,12 @@
 package com.young.util.jni.generator;
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Types;
 
 /**
  * Author: taylorcyang
@@ -11,10 +15,30 @@ import javax.lang.model.type.TypeMirror;
  * Life with passion. Code with creativity!
  */
 public class Helper {
-    public static String toJNIType(String c) {
-        if (c == null) {
-            return "";
-        } else if ("void".equals(c)) {
+
+    public static String toJNIType(TypeMirror t, Types typeUtils) {
+        if (t == null) return "";
+        final String c = t.toString();
+        final String throwable = "java.lang.Throwable";
+        final String jthrowable = "jthrowable";
+
+        //check if t is a subclass of java.lang.Throwable
+        if (throwable.equals(c)) {
+            return jthrowable;
+        } else {
+            Element base = typeUtils.asElement(t);
+            while (base instanceof TypeElement) {
+                TypeMirror sup = ((TypeElement) base).getSuperclass();
+                if (sup instanceof NoType) break;
+                if (throwable.equals(sup.toString())) {
+                    return jthrowable;
+                }
+                base = typeUtils.asElement(sup);
+            }
+        }
+
+        //for android, use java language level 6, can not use string case!!
+        if ("void".equals(c)) {
             return "void";
         } else if ("char".equals(c) ||
                 "boolean".equals(c) ||
@@ -35,7 +59,7 @@ public class Helper {
                 "double[]".equals(c)) {
             return 'j' + c.substring(0, c.length() - 2) + "Array";
         } else if (c.endsWith("[][]")) {
-            //mulity dimention array
+            //multi dimension array
             return "jobjectArray";
         } else if (c.endsWith("[]")) {
             //java.lang.Object[]
@@ -44,10 +68,13 @@ public class Helper {
             return "jstring";
         } else if (c.equals("java.lang.Class")) {
             return "jclass";
-        } else if ("java.lang.Throwable".equals(c)) {
-            //FIXME all subclass of Throwable should be jthorwable
+        }
+       /*
+        else if ("java.lang.Throwable".equals(c)) {
             return "jthrowable";
-        } else {
+        }
+        */
+        else {
             return "jobject";
         }
     }
@@ -94,31 +121,5 @@ public class Helper {
         } else {
             sb.append('L').append(type.replace('.', '/')).append(';');
         }
-    }
-
-
-    private static StringBuilder getObjectSignatureClassName(StringBuilder sb, Class<?> c) {
-        if (c == char.class) {
-            sb.append('C');
-        } else if (c == byte.class) {
-            sb.append('B');
-        } else if (c == short.class) {
-            sb.append('S');
-        } else if (c == int.class) {
-            sb.append('I');
-        } else if (c == long.class) {
-            sb.append('J');
-        } else if (c == float.class) {
-            sb.append('F');
-        } else if (c == double.class) {
-            sb.append('D');
-        } else if (c == boolean.class) {
-            sb.append('Z');
-        } else if (c == void.class) {
-            sb.append('V');
-        } else {
-            sb.append('L').append(c.getName().replace('.', '/')).append(';');
-        }
-        return sb;
     }
 }

@@ -3,7 +3,6 @@ package com.young.util.jni.generator;
 import com.young.util.jni.JNIHelper;
 
 import javax.annotation.processing.Filer;
-import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -25,8 +24,9 @@ import java.util.List;
  * Life with passion. Code with creativity!
  */
 public class CppCodeGenerator implements Runnable {
-    final Element mClazz;
-    final List<? extends Element> mMethods;
+    private final Environment mEnv;
+    private final Element mClazz;
+    private final List<? extends Element> mMethods;
     private Filer mFiler;
     private String mClassName;
     private String mJNIClassName;
@@ -34,18 +34,24 @@ public class CppCodeGenerator implements Runnable {
     private String mHeaderName;
     private String mSourceName;
 
-    //TODO JNIHElper.toJNIType throwable
+
+    //DONE JNIHElper.toJNIType throwable
     //TODO Use NativeClass to mark generate, NativeMethod to add implements
     //TODO file output
 
-    //FIXME remove
-    public static Messager messager;
-
-    public CppCodeGenerator(Element clazz,
+    public CppCodeGenerator(Environment env,
+                            Element clazz,
                             List<? extends Element> methods) {
+        mEnv = env;
         mClazz = clazz;
         mMethods = methods;
+    }
+
+    @Override
+    public void run() {
         initNames();
+        genHeader();
+        genSource();
     }
 
     private void initNames() {
@@ -60,14 +66,13 @@ public class CppCodeGenerator implements Runnable {
         mFullClassName = mClassName.replace('.', '/');
     }
 
-    @Override
-    public void run() {
-        genHeader();
-        genSource();
+    private void log(String msg) {
+        mEnv.messager.printMessage(Diagnostic.Kind.NOTE,
+                msg);
     }
 
-    private static void log(String msg) {
-        messager.printMessage(Diagnostic.Kind.NOTE,
+    private void warn(String msg) {
+        mEnv.messager.printMessage(Diagnostic.Kind.WARNING,
                 msg);
     }
 
@@ -152,7 +157,7 @@ public class CppCodeGenerator implements Runnable {
             w.println(Helper.getMethodSignature(e));
             w.println(" */");
 
-            w.print(Helper.toJNIType(e.getReturnType().toString()));
+            w.print(Helper.toJNIType(e.getReturnType(), mEnv.typeUtils));
             w.print(" ");
             w.print(m.getSimpleName().toString());
             w.print("(JNIEnv *env");
@@ -166,7 +171,7 @@ public class CppCodeGenerator implements Runnable {
             List<? extends VariableElement> params = e.getParameters();
             for (VariableElement ve : params) {
                 w.print(", ");
-                w.print(Helper.toJNIType(ve.asType().toString()));
+                w.print(Helper.toJNIType(ve.asType(), mEnv.typeUtils));
                 w.print(' ');
                 w.print(ve.getSimpleName().toString());
             }
@@ -188,7 +193,7 @@ public class CppCodeGenerator implements Runnable {
     }
 
     private void writeSourceTail(PrintWriter w) {
-        w.println("static JNINativeMethod gsNativeMethods[] = {");
+        w.println("static const JNINativeMethod gsNativeMethods[] = {");
         int methodLen = mMethods.size();
         for (int i = 0; i < methodLen; i++) {
             if (i == 0) {
@@ -208,7 +213,6 @@ public class CppCodeGenerator implements Runnable {
         w.println("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {\n" +
                 "    JNIEnv* env;\n" +
                 "    jclass clazz;\n" +
-                "    LOGD(\"JNI_OnLoad called\");\n" +
                 "    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {\n" +
                 "        return -1;\n" +
                 "    }\n" +
@@ -221,7 +225,7 @@ public class CppCodeGenerator implements Runnable {
                 "}\n");
 
         //JNI_OnUnload
-        w.println("JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {\n}");
+        w.println("JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {\n    \n}");
     }
 
     private void writeNativeMethodMapArray(ExecutableElement method,

@@ -1,7 +1,7 @@
 package com.young.test;
 
 import com.young.util.jni.generator.NativeClass;
-import com.young.util.jni.generator.NativeMethod;
+import com.young.util.jni.generator.NativeSource;
 
 /**
 
@@ -10,13 +10,13 @@ import com.young.util.jni.generator.NativeMethod;
  * Time:   下午10:48
  * Life with passion. Code with creativity!
  */
-@NativeClass(arch = NativeClass.ARCH_32)
+@NativeClass()
 public class Native {
     static {
         System.loadLibrary("native");
     }
 
-    @NativeMethod("jint c = a + b;\nreturn c;")
+    @NativeSource("jint c = a + b;\nreturn c;")
     public native int add(int a, int b);
 
     public static void main(String[] args) {

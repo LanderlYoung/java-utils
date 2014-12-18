@@ -13,6 +13,6 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.METHOD)
-public @interface NativeMethod {
+public @interface NativeSource {
     String[] value() default "";
 }

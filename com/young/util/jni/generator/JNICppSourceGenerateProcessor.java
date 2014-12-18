@@ -5,7 +5,6 @@ import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
-import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
@@ -14,6 +13,7 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Author: taylorcyang
@@ -22,13 +22,22 @@ import java.util.Set;
  * Life with passion. Code with creativity!
  */
 
-@SupportedAnnotationTypes({"com.young.util.jni.generator.NativeMethod",
-        "com.young.util.jni.generator.NativeClass"})
 public class JNICppSourceGenerateProcessor extends AbstractProcessor {
     private Messager mMessager;
     private Types mTypeUtils;
     private Elements mElementsUtils;
     private Filer mFiler;
+
+    private static final Set<String> SUPPORTED_ANNOTATIONS;
+
+    static {
+        SUPPORTED_ANNOTATIONS = new TreeSet<String>();
+        SUPPORTED_ANNOTATIONS.add(NativeClass.class.getName());
+        SUPPORTED_ANNOTATIONS.add(NativeSource.class.getName());
+    }
+
+    public JNICppSourceGenerateProcessor() {
+    }
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -71,6 +80,11 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
     @Override
     public SourceVersion getSupportedSourceVersion() {
         return SourceVersion.latestSupported();
+    }
+
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return SUPPORTED_ANNOTATIONS;
     }
 
     private static class ElementClazz {

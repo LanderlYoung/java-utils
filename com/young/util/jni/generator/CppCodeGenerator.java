@@ -33,10 +33,12 @@ public class CppCodeGenerator implements Runnable {
     private String mFullClassName;
     private String mHeaderName;
     private String mSourceName;
+    private int mTargetArch;
 
 
-    //DONE JNIHElper.toJNIType throwable
+    //DONE JNIHelper.toJNIType throwable
     //DONE Use NativeClass to mark generate, NativeMethod to add implements
+    //TODO different constant value for different arch
     //TODO file output
 
     public CppCodeGenerator(Environment env,
@@ -70,7 +72,14 @@ public class CppCodeGenerator implements Runnable {
         mSourceName = "_" + mJNIClassName + ".cpp";
         mFullClassName = mClassName.replace('.', '/');
 
+        findArchitecture();
+
         findNativeMethods();
+    }
+
+    private void findArchitecture() {
+        NativeClass nc = mClazz.getAnnotation(NativeClass.class);
+        mTargetArch = nc.arch();
     }
 
     private void findNativeMethods() {
@@ -98,6 +107,10 @@ public class CppCodeGenerator implements Runnable {
 
     public void genHeader() {
         File header = new File(mHeaderName);
+        if (!header.canWrite()) {
+            warn("output file " + header.getName() + " can not be written");
+            return;
+        }
         if (header.exists()) header.delete();
         PrintWriter w = null;
         try {
@@ -115,11 +128,14 @@ public class CppCodeGenerator implements Runnable {
                     "extern \"C\" {\n" +
                     "#endif\n");
 
-            w.print("#define FULL_CLASS_NAME \"");
+
+            generateConstantsDefination(w);
+
+            w.print("\n#define FULL_CLASS_NAME \"");
             w.print(mFullClassName);
             w.println("\"\n");
 
-            w.println("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
+            w.println("\nJNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
                     "JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved);\n");
             writeFunctions(w, false);
             w.println("\n#ifdef __cplusplus\n" +
@@ -133,8 +149,33 @@ public class CppCodeGenerator implements Runnable {
         }
     }
 
+    private void generateConstantsDefination(PrintWriter w) {
+        for (Element e : mClazz.getEnclosedElements()) {
+            if (e.getKind().equals(ElementKind.FIELD)) {
+                VariableElement ve = (VariableElement) e;
+                //if this field is a compile-time constant value it's
+                //value will be returned, otherwise null will be returned.
+                Object constValue = ve.getConstantValue();
+                if (constValue != null) {
+                    String defineName = mJNIClassName + "_" + ve.getSimpleName();
+                    w.print("#undef ");
+                    w.println(defineName);
+                    w.print("#define ");
+                    w.print(defineName);
+                    w.print(' ');
+                    w.println(HandyHelper.getJNIHeaderConstantValue(constValue, mTargetArch));
+                }
+            }
+        }
+    }
+
+
     public void genSource() {
         File source = new File(mSourceName);
+        if (!source.canWrite()) {
+            warn("output file " + source.getName() + " can not be written");
+            return;
+        }
         if (source.exists()) source.delete();
         PrintWriter w = null;
         try {

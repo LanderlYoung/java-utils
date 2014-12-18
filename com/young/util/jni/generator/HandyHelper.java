@@ -90,6 +90,35 @@ public class HandyHelper {
         return sb.toString();
     }
 
+    /**
+     * @param v
+     * @return
+     */
+    public static String getJNIHeaderConstantValue(Object v, int arch) {
+        if (v == null) {
+            return "";
+        }
+        Class<?> clazz = v.getClass();
+        if (Boolean.class == clazz) {
+            return (Boolean) v ? "1L" : "0L";
+        } else if (clazz == Byte.class ||
+                clazz == Short.class ||
+                clazz == Integer.class) {
+            return v + "L";
+        } else if (clazz == Character.class) {
+            return (int) (Character) v + "L";
+        } else if (clazz == Long.class) {
+            return v + "LL";
+        } else if (clazz == Float.class) {
+            return v + "f";
+        } else if (clazz == Double.class) {
+            return v + "";
+        } else if (clazz == String.class) {
+            return "\"" + v + "\"";
+        }
+        return "";
+    }
+
     private static void getSignatureClassName(StringBuilder sb, TypeMirror typeMirror) {
         String type = typeMirror.toString();
         while (type.endsWith("[]")) {

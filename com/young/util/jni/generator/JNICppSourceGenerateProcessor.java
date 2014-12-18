@@ -41,15 +41,16 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        final Environment env = new Environment(mMessager,
-                mTypeUtils, mElementsUtils, mFiler, roundEnv);
+        if (roundEnv.errorRaised() || roundEnv.processingOver()) return true;
+
         //classify annotations by class
         Set<? extends Element> classes =
                 roundEnv.getElementsAnnotatedWith(NativeClass.class);
 
-
         if (classes.isEmpty()) return true;
 
+        final Environment env = new Environment(mMessager,
+                mTypeUtils, mElementsUtils, mFiler, roundEnv);
         for (Element ec : classes) {
             if (ec instanceof TypeElement) {
                 CppCodeGenerator codeGen = new CppCodeGenerator(env, (TypeElement) ec);

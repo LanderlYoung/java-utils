@@ -38,7 +38,7 @@ public class CppCodeGenerator implements Runnable {
 
     //DONE JNIHelper.toJNIType throwable
     //DONE Use NativeClass to mark generate, NativeMethod to add implements
-    //TODO different constant value for different arch
+    //DELETE different constant value for different arch
     //TODO file output
 
     public CppCodeGenerator(Environment env,
@@ -64,9 +64,13 @@ public class CppCodeGenerator implements Runnable {
     private void init() {
         assert mClazz.getKind().equals(ElementKind.METHOD);
         Element pkg = mClazz.getEnclosingElement();
-        String pkgName = pkg.getSimpleName().toString();
+        String pkgName = pkg != null ? pkg.getSimpleName().toString() : "";
         String className = mClazz.getSimpleName().toString();
-        mClassName = pkgName + '.' + className;
+        if (pkgName.equals("")) {
+            mClassName = className;
+        } else {
+            mClassName = pkgName + '.' + className;
+        }
         mJNIClassName = JNIHelper.toJNIClassName(mClassName);
         mHeaderName = "_" + mJNIClassName + ".h";
         mSourceName = "_" + mJNIClassName + ".cpp";
@@ -108,7 +112,7 @@ public class CppCodeGenerator implements Runnable {
     public void genHeader() {
         File header = new File(mHeaderName);
         if (header.exists()) header.delete();
-        if (!header.canWrite()) {
+        if (header.exists() && !header.canWrite()) {
             warn("output file " + header.getName() + " can not be written");
             return;
         }
@@ -173,7 +177,7 @@ public class CppCodeGenerator implements Runnable {
     public void genSource() {
         File source = new File(mSourceName);
         if (source.exists()) source.delete();
-        if (!source.canWrite()) {
+        if (source.exists() && !source.canWrite()) {
             warn("output file " + source.getName() + " can not be written");
             return;
         }
@@ -292,13 +296,15 @@ public class CppCodeGenerator implements Runnable {
     private void writeNativeMethodMapArray(ExecutableElement method,
                                            PrintWriter w) {
         final String methodName = method.getSimpleName().toString();
+        w.print("const_cast<char *>(");
         w.print('\"');
         w.print(methodName);
-        w.println("\",");
+        w.println("\"),");
 
+        w.print("const_cast<char *>(");
         w.print('\"');
         w.print(HandyHelper.getMethodSignature(method));
-        w.println("\",");
+        w.println("\"),");
 
         w.print("reinterpret_cast<void *>(");
         w.print(methodName);

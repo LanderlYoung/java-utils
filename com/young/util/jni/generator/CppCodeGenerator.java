@@ -12,7 +12,6 @@ import javax.tools.Diagnostic;
 import javax.tools.FileObject;
 import javax.tools.StandardLocation;
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.LinkedList;
@@ -26,13 +25,21 @@ import java.util.List;
  */
 public class CppCodeGenerator implements Runnable {
     private final Environment mEnv;
-    private final Element mClazz;
+    private final TypeElement mClazz;
     private List<Element> mMethods;
+
+    //like com.example_package.SomeClass$InnerClass
     private String mClassName;
+    //like com_example_1package_SomeClass_InnerClass
     private String mJNIClassName;
-    private String mFullClassName;
+    //like com/example_package/SomeClass$InnerClass
+    private String mNativeClassSignature;
+
+    //header file name
     private String mHeaderName;
+    //source file Name
     private String mSourceName;
+    //target c/c++ file machine architecture
     private int mTargetArch;
 
 
@@ -41,6 +48,7 @@ public class CppCodeGenerator implements Runnable {
     //DELETE different constant value for different arch
     //FIXME fix get package name
     //TODO support for inner class
+    //TODO support for pure c code
     //TODO file output
 
     public CppCodeGenerator(Environment env,
@@ -56,31 +64,26 @@ public class CppCodeGenerator implements Runnable {
     }
 
     public void doGenerate() {
-        init();
-        if (!mMethods.isEmpty()) {
+        if (init() && !mMethods.isEmpty()) {
             genHeader();
             genSource();
         }
     }
 
-    private void init() {
-        assert mClazz.getKind().equals(ElementKind.METHOD);
-        Element pkg = mClazz.getEnclosingElement();
-        String pkgName = pkg != null ? pkg.getSimpleName().toString() : "";
-        String className = mClazz.getSimpleName().toString();
-        if (pkgName.equals("")) {
-            mClassName = className;
-        } else {
-            mClassName = pkgName + '.' + className;
-        }
+    private boolean init() {
+        if (!mClazz.getKind().equals(ElementKind.CLASS)) return false;
+
+        mClassName = HandyHelper.getClassName(mClazz, mEnv.elementUtils);
         mJNIClassName = JNIHelper.toJNIClassName(mClassName);
         mHeaderName = mJNIClassName + ".h";
         mSourceName = mJNIClassName + ".cpp";
-        mFullClassName = mClassName.replace('.', '/');
+        mNativeClassSignature = JNIHelper.getNativeClassName(mClassName);
 
         findArchitecture();
 
         findNativeMethods();
+
+        return true;
     }
 
     private void findArchitecture() {
@@ -113,13 +116,6 @@ public class CppCodeGenerator implements Runnable {
     }
 
     public void genHeader() {
-        //File header = new File(mHeaderName);
-        //if (header.exists()) header.delete();
-        //if (header.exists() && !header.canWrite()) {
-        //    warn("output file " + header.getName() + " can not be written");
-        //    return;
-        //}
-
         PrintWriter w = null;
         try {
             //JavaFileObject fileObject = mEnv.filer.createSourceFile(mHeaderName);
@@ -146,14 +142,10 @@ public class CppCodeGenerator implements Runnable {
 
             generateConstantsDefination(w);
 
-            w.print("\n#define FULL_CLASS_NAME \"");
-            w.print(mFullClassName);
-            w.println("\"\n");
-
             w.println("\nJNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
                     "JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved);\n");
             writeFunctions(w, false);
-            w.println("\n#ifdef __cplusplus\n" +
+            w.println("#ifdef __cplusplus\n" +
                     "}\n" +
                     "#endif");
             w.println("#endif");
@@ -186,12 +178,6 @@ public class CppCodeGenerator implements Runnable {
 
 
     public void genSource() {
-        File source = new File(mSourceName);
-        if (source.exists()) source.delete();
-        if (source.exists() && !source.canWrite()) {
-            warn("output file " + source.getName() + " can not be written");
-            return;
-        }
         PrintWriter w = null;
         try {
             FileObject fileObject = mEnv
@@ -201,6 +187,13 @@ public class CppCodeGenerator implements Runnable {
             w = new PrintWriter(fileObject.openWriter());
 
             w.println("#include \"" + mHeaderName + "\"\n");
+
+            w.print("\n//java class name: ");
+            w.println(mClassName);
+            w.print("#define FULL_CLASS_NAME \"");
+            w.print(mNativeClassSignature);
+            w.println("\"\n");
+
             writeFunctions(w, true);
 
             //write JNI_OnLoad & JNI_OnUnload
@@ -234,7 +227,7 @@ public class CppCodeGenerator implements Runnable {
             w.print('.');
             w.println(m.getSimpleName().toString());
             w.print(" * Signature: ");
-            w.println(HandyHelper.getMethodSignature(e));
+            w.println(HandyHelper.getMethodSignatureForNative4Code(e));
             w.println(" */");
 
             w.print(HandyHelper.toJNIType(e.getReturnType(), mEnv.typeUtils));

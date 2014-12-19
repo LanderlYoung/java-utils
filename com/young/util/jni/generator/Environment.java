@@ -15,7 +15,7 @@ import javax.lang.model.util.Types;
 public final class Environment {
     public final Messager messager;
     public final Types typeUtils;
-    public final Elements elemrntUtils;
+    public final Elements elementUtils;
     public final Filer filer;
     public final RoundEnvironment roundEnvironment;
 
@@ -26,7 +26,7 @@ public final class Environment {
                        RoundEnvironment environment) {
         this.messager = messager;
         this.typeUtils = types;
-        this.elemrntUtils = elements;
+        this.elementUtils = elements;
         this.filer = filer;
         this.roundEnvironment = environment;
     }

@@ -1,12 +1,16 @@
 package com.young.util.jni.generator;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import java.util.Stack;
 
 /**
  * Author: taylorcyang
@@ -79,6 +83,7 @@ public class HandyHelper {
         }
     }
 
+    //same as java
     public static String getMethodSignature(ExecutableElement method) {
         StringBuilder sb = new StringBuilder();
         sb.append('(');
@@ -87,6 +92,32 @@ public class HandyHelper {
         }
         sb.append(')');
         getSignatureClassName(sb, method.getReturnType());
+        return sb.toString();
+    }
+
+    /**
+     * @return like com.example_package.SomeClass$InnerClass
+     */
+    public static String getClassName(Element clazz, Elements elementUtils) {
+        Stack<String> className = new Stack<String>();
+        StringBuilder sb = new StringBuilder();
+        Element e = clazz;
+        while (e != null && ElementKind.CLASS.equals(e.getKind())) {
+            className.push(e.getSimpleName().toString());
+            e = e.getEnclosingElement();
+        }
+
+        PackageElement pkg = elementUtils.getPackageOf(clazz);
+        if (pkg != null) {
+            sb.append(pkg.getQualifiedName().toString());
+            sb.append('.');
+        }
+
+        while (!className.empty()) {
+            sb.append(className.pop());
+            sb.append('$');
+        }
+        sb.deleteCharAt(sb.length() - 1);
         return sb.toString();
     }
 
@@ -150,5 +181,10 @@ public class HandyHelper {
         } else {
             sb.append('L').append(type.replace('.', '/')).append(';');
         }
+    }
+
+    public static String getMethodSignatureForNative4Code(ExecutableElement e) {
+        //FIXME change to fix inner class...
+        return getMethodSignature(e);
     }
 }

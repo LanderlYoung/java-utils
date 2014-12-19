@@ -11,9 +11,22 @@ public class JNIHelper {
         return toJNIClassName(c.getName());
     }
 
+    /**
+     * @param className
+     * @return like com_example_1package_SomeClass_InnerClass
+     */
     public static String toJNIClassName(String className) {
         if (className == null) return null;
-        return className.replace("_", "_1").replace(".", "_");
+        return className.replace("_", "_1").replace(".", "_")
+                //inner class
+                .replace('$', '_');
+    }
+
+    /**
+     * @return like com/example_package/SomeClass$InnerClass
+     */
+    public static String getNativeClassName(String className) {
+        return className.replace('.', '/');
     }
 
     public static String toJNIType(Class<?> c) {

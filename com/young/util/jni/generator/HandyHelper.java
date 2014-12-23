@@ -51,8 +51,11 @@ public final class HandyHelper {
 
         PackageElement pkg = mEnv.elementUtils.getPackageOf(clazz);
         if (pkg != null) {
-            sb.append(pkg.getQualifiedName().toString());
-            sb.append('.');
+            String pkgName = pkg.getQualifiedName().toString();
+            if(pkgName.length() > 0) {
+                sb.append(pkgName);
+                sb.append('.');
+            }
         }
 
         while (!className.empty()) {

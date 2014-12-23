@@ -151,7 +151,7 @@ public class CppCodeGenerator implements Runnable {
                     "#endif");
             w.println("#endif");
         } catch (IOException e) {
-
+            warn("generate header file " + mHeaderName + " failed!");
         } finally {
             closeSilently(w);
         }
@@ -190,6 +190,7 @@ public class CppCodeGenerator implements Runnable {
                 }
             }
         }
+        w.println();
     }
 
 
@@ -211,7 +212,7 @@ public class CppCodeGenerator implements Runnable {
             //write JNI_OnLoad & JNI_OnUnload
             writeSourceTail(w);
         } catch (IOException e) {
-
+            warn("generate source file " + mSourceName + " failed");
         } finally {
             closeSilently(w);
         }
@@ -248,7 +249,7 @@ public class CppCodeGenerator implements Runnable {
             w.println(mJNIClassName);
             w.print(" * Method:    ");
             w.print(mClassName);
-            w.print('.');
+            w.print("::");
             w.println(m.getSimpleName().toString());
             w.print(" * Signature: ");
             w.println(mHelper.getMethodSignature(e));
@@ -304,15 +305,16 @@ public class CppCodeGenerator implements Runnable {
             }
         }
         w.print("};\n" +
-                "static const int gsMethodCount = sizeof(gsNativeMethods) / sizeof(JNINativeMethod);//");
-        w.println("" + mMethods.size());
+                "static const int gsMethodCount =\n    sizeof(gsNativeMethods) / sizeof(JNINativeMethod); //");
+        w.println(mMethods.size());
         w.println();
 
         writeNativeRegistrationFunc(w, true);
         //JNI_OnLoad
         w.print("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {\n" +
                 "    JNIEnv* env;\n" +
-                "    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {\n" +
+                "    if (vm->GetEnv(reinterpret_cast<void**>(&env),\n" +
+                "                JNI_VERSION_1_6) != JNI_OK) {\n" +
                 "        return -1;\n" +
                 "    }\n" +
                 "    register_");

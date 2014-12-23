@@ -27,13 +27,14 @@ public class CppCodeGenerator implements Runnable {
     private final Environment mEnv;
     private final TypeElement mClazz;
     private List<Element> mMethods;
+    private final HandyHelper mHelper;
 
     //like com.example_package.SomeClass$InnerClass
     private String mClassName;
     //like com_example_1package_SomeClass_InnerClass
     private String mJNIClassName;
     //like com/example_package/SomeClass$InnerClass
-    private String mNativeClassSignature;
+    private String mNativeBinaryClassName;
 
     //header file name
     private String mHeaderName;
@@ -42,20 +43,20 @@ public class CppCodeGenerator implements Runnable {
     //target c/c++ file machine architecture
     private int mTargetArch;
 
-
-    //DONE JNIHelper.toJNIType throwable
+    //DONE HandyHelper.toJNIType throwable
     //DONE Use NativeClass to mark generate, NativeMethod to add implements
     //DELETE different constant value for different arch
-    //FIXME fix get package name
-    //TODO support for inner class
-    //TODO support for pure c code
-    //TODO file output
+    //DONE fix get package name
+    //DONE support for inner class
+    //XXXX support for pure c code
+    //DONE file output
 
     public CppCodeGenerator(Environment env,
                             TypeElement clazz) {
         mEnv = env;
         mClazz = clazz;
         mMethods = new LinkedList<Element>();
+        mHelper = new HandyHelper(env);
     }
 
     @Override
@@ -73,11 +74,11 @@ public class CppCodeGenerator implements Runnable {
     private boolean init() {
         if (!mClazz.getKind().equals(ElementKind.CLASS)) return false;
 
-        mClassName = HandyHelper.getClassName(mClazz, mEnv.elementUtils);
+        mClassName = mHelper.getClassName(mClazz);
         mJNIClassName = JNIHelper.toJNIClassName(mClassName);
         mHeaderName = mJNIClassName + ".h";
         mSourceName = mJNIClassName + ".cpp";
-        mNativeClassSignature = JNIHelper.getNativeClassName(mClassName);
+        mNativeBinaryClassName = JNIHelper.getNativeBinaryClassName(mClassName);
 
         findArchitecture();
 
@@ -139,10 +140,10 @@ public class CppCodeGenerator implements Runnable {
                     "extern \"C\" {\n" +
                     "#endif\n");
 
-
             generateConstantsDefination(w);
 
-            w.println("\nJNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
+            writeNativeRegistrationFunc(w, false);
+            w.println("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
                     "JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved);\n");
             writeFunctions(w, false);
             w.println("#ifdef __cplusplus\n" +
@@ -153,6 +154,21 @@ public class CppCodeGenerator implements Runnable {
 
         } finally {
             closeSilently(w);
+        }
+    }
+
+    private void writeNativeRegistrationFunc(PrintWriter w, boolean isSource) {
+        w.println("/*\n * register Native functions\n */");
+        w.print("void register_");
+        w.print(mJNIClassName);
+        w.print("(JNIEnv *env)");
+        if (!isSource) {
+            w.println(";");
+        } else {
+            w.println(" {\n" +
+                    "    jclass clazz = env->FindClass(FULL_CLASS_NAME);\n" +
+                    "    env->RegisterNatives(clazz, gsNativeMethods,gsMethodCount);\n" +
+                    "}\n");
         }
     }
 
@@ -188,11 +204,7 @@ public class CppCodeGenerator implements Runnable {
 
             w.println("#include \"" + mHeaderName + "\"\n");
 
-            w.print("\n//java class name: ");
-            w.println(mClassName);
-            w.print("#define FULL_CLASS_NAME \"");
-            w.print(mNativeClassSignature);
-            w.println("\"\n");
+            writeHelperMarcos(w);
 
             writeFunctions(w, true);
 
@@ -203,6 +215,18 @@ public class CppCodeGenerator implements Runnable {
         } finally {
             closeSilently(w);
         }
+    }
+
+    private void writeHelperMarcos(PrintWriter w) {
+        w.print("//java class name: ");
+        w.println(mClassName);
+        w.print("#define FULL_CLASS_NAME \"");
+        w.print(mNativeBinaryClassName);
+        w.println("\"");
+        w.print("#define constants(cons) ");
+        w.print(mJNIClassName);
+        w.println("_ ## cons");
+        w.println();
     }
 
     private static void closeSilently(Closeable c) {
@@ -227,10 +251,10 @@ public class CppCodeGenerator implements Runnable {
             w.print('.');
             w.println(m.getSimpleName().toString());
             w.print(" * Signature: ");
-            w.println(HandyHelper.getMethodSignatureForNative4Code(e));
+            w.println(mHelper.getMethodSignature(e));
             w.println(" */");
 
-            w.print(HandyHelper.toJNIType(e.getReturnType(), mEnv.typeUtils));
+            w.print(mHelper.toJNIType(e.getReturnType()));
             w.print(" ");
             w.print(m.getSimpleName().toString());
             w.print("(JNIEnv *env");
@@ -244,7 +268,7 @@ public class CppCodeGenerator implements Runnable {
             List<? extends VariableElement> params = e.getParameters();
             for (VariableElement ve : params) {
                 w.print(", ");
-                w.print(HandyHelper.toJNIType(ve.asType(), mEnv.typeUtils));
+                w.print(mHelper.toJNIType(ve.asType()));
                 w.print(' ');
                 w.print(ve.getSimpleName().toString());
             }
@@ -270,32 +294,33 @@ public class CppCodeGenerator implements Runnable {
         int methodLen = mMethods.size();
         for (int i = 0; i < methodLen; i++) {
             if (i == 0) {
-                w.println('{');
+                w.println("    {");
             } else {
-                w.println("}, {");
+                w.println("    }, {");
             }
             writeNativeMethodMapArray((ExecutableElement) mMethods.get(i), w);
             if (i == methodLen - 1) {
-                w.println("}");
+                w.println("    }");
             }
         }
-        w.println("};\n" +
-                "static const int gsMethodCount = sizeof(gsNativeMethods) / sizeof(JNINativeMethod);\n");
+        w.print("};\n" +
+                "static const int gsMethodCount = sizeof(gsNativeMethods) / sizeof(JNINativeMethod);//");
+        w.println("" + mMethods.size());
+        w.println();
 
+        writeNativeRegistrationFunc(w, true);
         //JNI_OnLoad
-        w.println("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {\n" +
+        w.print("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {\n" +
                 "    JNIEnv* env;\n" +
-                "    jclass clazz;\n" +
                 "    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6) != JNI_OK) {\n" +
                 "        return -1;\n" +
                 "    }\n" +
-                "    clazz = env->FindClass(FULL_CLASS_NAME);\n" +
-                "    //register JNI Function\n" +
-                "    env->RegisterNatives(clazz, gsNativeMethods,\n" +
-                "        gsMethodCount);\n" +
-                "    " +
-                "    return JNI_VERSION_1_6;\n" +
-                "}\n");
+                "    register_");
+        w.print(mJNIClassName);
+        w.println("(env);");
+        w.print("    return JNI_VERSION_1_6;\n" +
+                "}\n" +
+                "\n");
 
         //JNI_OnUnload
         w.println("JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {\n    \n}");
@@ -304,17 +329,17 @@ public class CppCodeGenerator implements Runnable {
     private void writeNativeMethodMapArray(ExecutableElement method,
                                            PrintWriter w) {
         final String methodName = method.getSimpleName().toString();
-        w.print("const_cast<char *>(");
+        w.print("        const_cast<char *>(");
         w.print('\"');
         w.print(methodName);
         w.println("\"),");
 
-        w.print("const_cast<char *>(");
+        w.print("        const_cast<char *>(");
         w.print('\"');
-        w.print(HandyHelper.getMethodSignature(method));
+        w.print(mHelper.getBinaryMethodSignature(method));
         w.println("\"),");
 
-        w.print("reinterpret_cast<void *>(");
+        w.print("        reinterpret_cast<void *>(");
         w.print(methodName);
         w.println(')');
     }

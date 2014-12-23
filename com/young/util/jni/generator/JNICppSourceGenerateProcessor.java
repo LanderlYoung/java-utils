@@ -10,7 +10,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.Diagnostic;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -67,14 +66,6 @@ public class JNICppSourceGenerateProcessor extends AbstractProcessor {
             }
         }
         return true;
-    }
-
-    private void warn(String msg) {
-        mMessager.printMessage(Diagnostic.Kind.WARNING, msg);
-    }
-
-    private void log(String msg) {
-        mMessager.printMessage(Diagnostic.Kind.NOTE, msg);
     }
 
     @Override

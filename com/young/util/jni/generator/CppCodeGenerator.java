@@ -136,20 +136,23 @@ public class CppCodeGenerator implements Runnable {
             w.println("/* header file for class " + mClassName + " */\n");
             w.println("#ifndef " + defineSwitch);
             w.println("#define " + defineSwitch);
+            w.println();
+
+            generateConstantsDefination(w);
+            writeFunctions(w, false);
+
             w.println("#ifdef __cplusplus\n" +
                     "extern \"C\" {\n" +
                     "#endif\n");
 
-            generateConstantsDefination(w);
-
             writeNativeRegistrationFunc(w, false);
+
             w.println("JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved);\n" +
                     "JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved);\n");
-            writeFunctions(w, false);
             w.println("#ifdef __cplusplus\n" +
                     "}\n" +
-                    "#endif");
-            w.println("#endif");
+                    "#endif\n");
+            w.println("\n#endif");
         } catch (IOException e) {
             warn("generate header file " + mHeaderName + " failed!");
         } finally {
@@ -181,7 +184,7 @@ public class CppCodeGenerator implements Runnable {
                 Object constValue = ve.getConstantValue();
                 if (constValue != null) {
                     String defineName = mJNIClassName + "_" + ve.getSimpleName();
-                    w.print("#undef ");
+                    w.print("#undef  ");
                     w.println(defineName);
                     w.print("#define ");
                     w.print(defineName);
